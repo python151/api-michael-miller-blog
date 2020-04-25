@@ -1,8 +1,10 @@
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
 from django.contrib.auth import authenticate, login as log
+
 from django.contrib.auth.models import User
 from django.contrib.sessions.models import Session
-from django.views.decorators.csrf import csrf_exempt
 
 import json
 
@@ -14,7 +16,7 @@ def getSessionFromReq(request):
 
 def getSessionKey(request):
     return request.session.session_key
-    
+
 
 def login(request):
     # checking if user exists
