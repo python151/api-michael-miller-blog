@@ -5,17 +5,23 @@ from django.contrib.auth import authenticate, login as log
 
 from django.contrib.auth.models import User
 from django.contrib.sessions.models import Session
-
+from importlib import import_module
 import json
+from django.conf import settings
+SessionStore = import_module(settings.SESSION_ENGINE).SessionStore
 
 def getSessionFromReq(request):
     data = request.GET.dict()
     sessKey = data.get('session-key')
-    obj = Session.objects.filter(session_key=sessKey).get()
-    return obj.get_decoded()
+    obj = SessionStore(session_key=sessKey)
+    return obj
 
 def getSessionKey(request):
-    return request.session.session_key
+    s = SessionStore()
+    s.create()
+    s['_auth_user_id'] = request.session['_auth_user_id']
+    s.save()
+    return s.session_key
 
 
 def login(request):
@@ -42,6 +48,9 @@ def login(request):
     
     # logging user in
     log(request, user)
+
+    # added user id to session
+    request.session['_auth_user_id']
     
     # authentication success returning session key to client
     return JsonResponse({
@@ -84,9 +93,11 @@ def signup(request):
     user = authenticate(username=username, password=password)
     log(request, user)
     
+    # added user id to session
+    request.session['_auth_user_id']
+    
     # returning success and sessionKey for session storage
     return JsonResponse({
         "success": True,
         "sessionKey": getSessionKey(request),
     })
-    
