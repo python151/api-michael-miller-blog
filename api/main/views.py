@@ -1,4 +1,5 @@
 from django.http import JsonResponse
+from django.shortcuts import redirect as redirect
 from django.views.decorators.csrf import csrf_exempt
 
 from django.contrib.auth import authenticate, login as log
@@ -8,6 +9,9 @@ from django.contrib.sessions.models import Session
 from importlib import import_module
 import json
 from django.conf import settings
+
+from .models import Post, Comment
+
 SessionStore = import_module(settings.SESSION_ENGINE).SessionStore
 
 def getSessionFromReq(request):
@@ -101,3 +105,86 @@ def signup(request):
         "success": True,
         "sessionKey": getSessionKey(request),
     })
+
+def getPost(request, id):
+    post = Post.objects.filter(pk=id)
+    if not post.exists():
+        return JsonResponse({"success": False, "message": "Post does not exist"})
+    post = post.get()
+    html = open(post.htmlDir, "r").read()
+
+    return JsonResponse({
+        "success": True,
+        "title": post.title,
+        "html": html,
+        "date": post.date,
+        "id": post.id
+    })
+
+def getLatestPosts(request, amount):
+    posts = Post.objects.all()[::-1][:amount]
+    retPosts = []
+    for post in posts:
+        content = getPost(request, post.id).content
+        body_unicode = content.decode('utf-8')
+        data = json.loads(body_unicode)
+        retPosts.append(data)
+
+    return JsonResponse({
+        "success": True,
+        "posts": retPosts
+    })
+
+@csrf_exempt
+def createNewPost(request):
+    session = getSessionFromReq(request)
+    id = session['_auth_user_id']
+    user = User.objects.filter(pk=id)
+
+    data = request.body
+    body_unicode = request.body.decode('utf-8')
+    data = json.loads(body_unicode)
+
+    title, html = data['title'], data['html']
+
+    post = Post.objects.create(title=title)
+    post.save()
+
+    open("./html/"+str(post.id)+".html", "w").write(html)
+    post.htmlDir = "./html/"+str(post.id)+".html"
+
+    post.save()
+
+    return JsonResponse({
+        "success": True,
+        "id": post.id
+    })
+
+@csrf_exempt
+def editPost(request, id):
+    session = getSessionFromReq(request)
+    userId = session['_auth_user_id']
+    user = User.objects.filter(pk=userId)
+
+    data = request.body
+    body_unicode = request.body.decode('utf-8')
+    data = json.loads(body_unicode)
+
+    title, html = data['title'], data['html']
+
+    post = Post.objects.filter(id=id)
+    if not post.exists():
+        return JsonResponse({"success": False, "message": "Post does not exist"})
+    post = post.get()
+    if post.title != title:
+        post.title = title
+        post.save()
+    open(post.htmlDir, "w").write(html)
+
+    return JsonResponse({
+        "success": True,
+        "id": post.id
+    })
+
+def adminRedirect(request):
+    return redirect("/admin")

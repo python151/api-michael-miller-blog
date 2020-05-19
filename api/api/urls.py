@@ -22,4 +22,10 @@ urlpatterns = [
 
     path('login/', main.login),
     path('signup/', main.signup),
+    path('get/latest/posts/<int:amount>/', main.getLatestPosts),
+    path('create/new/post/', main.createNewPost),
+    path('get/post/<int:id>/', main.getPost),
+    path('edit/post/<int:id>/', main.editPost),
+
+    path('', main.adminRedirect)
 ]
